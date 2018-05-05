@@ -1,5 +1,6 @@
 import  tensorflow as tf
 import  os
+import random
 from PIL import Image
 import matplotlib.pyplot as plt
 
@@ -29,6 +30,27 @@ epoch = 2
 #生成还是测试
 Iscreate = False
 
+#获取图像及其对应的标签，并且打乱顺序.否则，同一个TFRecord文件中只会包含一个类别，会影响到网络的训练
+def get_picture(picture_dir):
+    pic_list = []
+    label_list = []
+    for index, name in enumerate(classes):
+        class_path = picture_dir+'/'+name+'/'
+        for img_name in os.listdir(class_path):
+            img_path = class_path + img_name
+            pic_list.append(img_path)
+            label_list.append(index)
+    dict = list(zip(pic_list,label_list))
+    random.shuffle(dict)
+    #test only
+    # for pic,lab in dict:
+    #     print(pic,lab)
+    return dict
+
+# if __name__ == '__main__':
+#     get_picture(picture_dir)
+
+
 def createTFRecord(picture_dir,TFR_save_dir):
     # TFRecord文件个数
     TFR_num = 1
@@ -38,9 +60,8 @@ def createTFRecord(picture_dir,TFR_save_dir):
     TFRcord_name = ("traindata-%.2d.tfrecords" % TFR_num)
     writer = tf.python_io.TFRecordWriter(TFR_save_dir+'/' + TFRcord_name)
     # 类别和路径
-    for index, name in enumerate(classes):
-        class_path = picture_dir +'/'+ name + '/'
-        for img_name in os.listdir(class_path):
+    dict = get_picture(picture_dir)
+    for img_path, label in dict:
             counter = counter + 1
             if counter > pic_num:
                 print(counter)
@@ -49,13 +70,12 @@ def createTFRecord(picture_dir,TFR_save_dir):
                 # tfrecords格式文件名
                 TFRcord_name = ("traindata-%.2d.tfrecords" % TFR_num)
                 writer = tf.python_io.TFRecordWriter(TFR_save_dir+'/' + TFRcord_name)
-            img_path = class_path + img_name  # 每一个图片的地址
             img = Image.open(img_path, 'r')
             size = img.size
             img_raw = img.tobytes()  # 将图片转化为二进制格式
             example = tf.train.Example(
                 features=tf.train.Features(feature={
-                    'label': tf.train.Feature(int64_list=tf.train.Int64List(value=[index])),
+                    'label': tf.train.Feature(int64_list=tf.train.Int64List(value=[label])),
                     'img_raw': tf.train.Feature(bytes_list=tf.train.BytesList(value=[img_raw])),
                     'img_width': tf.train.Feature(int64_list=tf.train.Int64List(value=[size[0]])),
                     'img_height': tf.train.Feature(int64_list=tf.train.Int64List(value=[size[1]]))
